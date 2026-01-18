@@ -37,19 +37,26 @@ public class PaymentService {
         vnp_Params.put("vnp_ReturnUrl", VNPayConfig.vnp_ReturnUrl);
         vnp_Params.put("vnp_IpAddr", vnp_IpAddr);
 
-        // --- SỬA LỖI MÚI GIỜ Ở ĐÂY ---
-        Calendar cld = Calendar.getInstance(TimeZone.getTimeZone("Etc/GMT+7"));
+        // --- KHẮC PHỤC TRIỆT ĐỂ LỖI TIMEZONE (CODE 15) ---
+        // Sử dụng "Asia/Ho_Chi_Minh" là chuẩn nhất cho giờ VN
+        TimeZone vnTimeZone = TimeZone.getTimeZone("Asia/Ho_Chi_Minh");
+        
+        Calendar cld = Calendar.getInstance(vnTimeZone);
         SimpleDateFormat formatter = new SimpleDateFormat("yyyyMMddHHmmss");
-        // Quan trọng: Set TimeZone cho formatter để đảm bảo nó ra giờ VN
-        formatter.setTimeZone(TimeZone.getTimeZone("Etc/GMT+7"));
+        formatter.setTimeZone(vnTimeZone);
         
         String vnp_CreateDate = formatter.format(cld.getTime());
+        
+        // Debug: In ra console để kiểm tra xem đúng giờ chưa
+        System.out.println("VNPAY Create Date (VN Time): " + vnp_CreateDate);
+        
         vnp_Params.put("vnp_CreateDate", vnp_CreateDate);
 
+        // Cộng thêm 15 phút cho thời gian hết hạn
         cld.add(Calendar.MINUTE, 15);
         String vnp_ExpireDate = formatter.format(cld.getTime());
         vnp_Params.put("vnp_ExpireDate", vnp_ExpireDate);
-        // -----------------------------
+        // -------------------------------------------------
 
         // Build URL & Hash Data
         List<String> fieldNames = new ArrayList<>(vnp_Params.keySet());

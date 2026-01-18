@@ -12,6 +12,10 @@ import java.io.UnsupportedEncodingException;
 import java.time.LocalDate;
 import java.time.LocalTime; // Import thêm để check giờ hiện tại
 import java.util.List;
+import java.time.LocalDateTime;
+import java.time.Duration;
+import java.util.ArrayList;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class BookingService {
@@ -22,19 +26,47 @@ public class BookingService {
     private CourtRepository courtRepository;
     @Autowired
     private UserRepository userRepository;
-    
+
     @Autowired
     private PaymentService paymentService;
 
-    // 1. Lấy danh sách giờ đã bị đặt của 1 sân vào ngày X
+    // 1. Lấy danh sách giờ đã đặt (ĐÃ NÂNG CẤP: Tự động hủy đơn treo quá 15 phút)
     public List<Booking> getBookedSlots(Long courtId, String dateStr) {
         LocalDate date = LocalDate.parse(dateStr);
-        return bookingRepository.findByCourtIdAndBookingDateAndStatusNot(courtId, date, BookingStatus.CANCELLED);
+        
+        // Lấy tất cả các đơn chưa hủy (Gồm CONFIRMED và PENDING)
+        List<Booking> bookings = bookingRepository.findByCourtIdAndBookingDateAndStatusNot(courtId, date, BookingStatus.CANCELLED);
+        
+        List<Booking> activeBookings = new ArrayList<>();
+        LocalDateTime now = LocalDateTime.now();
+
+        for (Booking b : bookings) {
+            // LOGIC TỰ ĐỘNG HỦY ĐƠN TREO:
+            // Nếu đơn đang PENDING mà đã tạo quá 15 phút -> Coi như hết hạn -> HỦY LUÔN
+            if (b.getStatus() == BookingStatus.PENDING) {
+                // Tính khoảng thời gian từ lúc tạo đến bây giờ
+                long minutesDiff = Duration.between(b.getCreatedAt(), now).toMinutes();
+                
+                if (minutesDiff > 15) {
+                    // Quá 15 phút chưa thanh toán -> Hủy đơn
+                    b.setStatus(BookingStatus.CANCELLED);
+                    bookingRepository.save(b);
+                    // Không thêm vào danh sách activeBookings (Để frontend hiển thị là Trống)
+                    continue; 
+                }
+            }
+            
+            // Nếu là CONFIRMED hoặc PENDING còn hạn thì mới thêm vào danh sách (để hiện màu đỏ)
+            activeBookings.add(b);
+        }
+
+        return activeBookings;
     }
 
     // 2. Xử lý đặt sân (ĐÃ NÂNG CẤP: Check ngày quá khứ + Đặt nhiều giờ + VNPAY)
-    public Object createBooking(BookingRequest request, HttpServletRequest httpRequest) throws UnsupportedEncodingException {
-        
+    public Object createBooking(BookingRequest request, HttpServletRequest httpRequest)
+            throws UnsupportedEncodingException {
+
         // --- A. KIỂM TRA NGÀY GIỜ HỢP LỆ (MỚI THÊM) ---
         // 1. Không được đặt ngày trong quá khứ
         if (request.getDate().isBefore(LocalDate.now())) {
@@ -63,7 +95,8 @@ public class BookingService {
             for (Booking b : existingBookings) {
                 // Logic: Nếu Start_Cũ <= Giờ_Check < End_Cũ => Bị trùng
                 if (checkingHour >= b.getStartTime() && checkingHour < b.getEndTime()) {
-                    throw new RuntimeException("Khung giờ " + checkingHour + "h - " + (checkingHour + 1) + "h đã bị người khác đặt rồi!");
+                    throw new RuntimeException(
+                            "Khung giờ " + checkingHour + "h - " + (checkingHour + 1) + "h đã bị người khác đặt rồi!");
                 }
             }
         }
@@ -88,10 +121,10 @@ public class BookingService {
         if ("VNPAY".equals(request.getPaymentMethod())) {
             newBooking.setStatus(BookingStatus.PENDING);
             Booking savedBooking = bookingRepository.save(newBooking);
-            
+
             // Tạo URL thanh toán VNPAY
             String vnpayUrl = paymentService.createVNPayUrl(savedBooking, httpRequest);
-            return vnpayUrl; 
+            return vnpayUrl;
         } else {
             newBooking.setStatus(BookingStatus.CONFIRMED);
             return bookingRepository.save(newBooking);
@@ -113,11 +146,15 @@ public class BookingService {
     }
 
     // 5. Hủy đơn
+    @Transactional
     public void cancelBooking(Long bookingId) {
         Booking booking = bookingRepository.findById(bookingId).orElse(null);
         if (booking != null) {
             booking.setStatus(BookingStatus.CANCELLED);
             bookingRepository.save(booking);
+            System.out.println("BookingService: Đã đổi trạng thái đơn " + bookingId + " sang CANCELLED");
+        } else {
+            System.out.println("BookingService: Không tìm thấy đơn trong DB để hủy!");
         }
     }
 

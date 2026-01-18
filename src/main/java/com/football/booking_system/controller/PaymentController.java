@@ -1,59 +1,64 @@
 package com.football.booking_system.controller;
 
-// 1. Import các thư viện của Spring Framework
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import jakarta.servlet.http.HttpServletResponse;
-
-// 2. Import các thư viện Java cơ bản
 import java.io.IOException;
 import java.util.Map;
-
-// 3. Import Service xử lý logic
 import com.football.booking_system.service.BookingService;
 
 @RestController
 @RequestMapping("/api/payment")
-@CrossOrigin(origins = "*") // Cho phép Frontend gọi API thoải mái
+@CrossOrigin(origins = "*")
 public class PaymentController {
 
     @Autowired
     private BookingService bookingService;
 
-    // API nhận phản hồi từ VNPAY (Callback)
-    // URL: http://localhost:8080/api/payment/vnpay-return
     @GetMapping("/vnpay-return")
     public void vnpayReturn(@RequestParam Map<String, String> queryParams, HttpServletResponse response) throws IOException {
         String vnp_ResponseCode = queryParams.get("vnp_ResponseCode");
-        String vnp_TxnRef = queryParams.get("vnp_TxnRef"); // Mã đơn hàng dạng: ID_Random
+        String vnp_TxnRef = queryParams.get("vnp_TxnRef");
 
-        // BƯỚC 1: Tách lấy ID booking từ chuỗi ref (Ví dụ: "15_9823" -> lấy số 15)
-        // Lấy ra trước để dùng cho cả 2 trường hợp thành công hoặc thất bại
+        // --- DEBUG LOG (Xem ở Console Backend) ---
+        System.out.println("-------------------------------------------------");
+        System.out.println("VNPAY RETURN GỌI VỀ:");
+        System.out.println("Mã lỗi (ResponseCode): " + vnp_ResponseCode);
+        System.out.println("Mã giao dịch (TxnRef): " + vnp_TxnRef);
+
         Long bookingId = 0L;
         try {
             if (vnp_TxnRef != null) {
-                bookingId = Long.parseLong(vnp_TxnRef.split("_")[0]);
+                // Thử cắt chuỗi
+                String[] parts = vnp_TxnRef.split("_");
+                if (parts.length > 0) {
+                    bookingId = Long.parseLong(parts[0]);
+                    System.out.println("ID Đơn hàng tách được: " + bookingId);
+                }
             }
-        } catch (NumberFormatException e) {
-            System.out.println("Lỗi đọc mã đơn hàng: " + e.getMessage());
+        } catch (Exception e) {
+            System.out.println("LỖI: Không đọc được ID đơn hàng! " + e.getMessage());
         }
 
-        // BƯỚC 2: Kiểm tra kết quả giao dịch
         if ("00".equals(vnp_ResponseCode)) {
-            // --- TRƯỜNG HỢP: THANH TOÁN THÀNH CÔNG ---
+            // THÀNH CÔNG
+            System.out.println("=> Giao dịch THÀNH CÔNG. Đang xác nhận đơn...");
             if (bookingId > 0) {
-                bookingService.confirmBooking(bookingId); // Cập nhật thành CONFIRMED
+                bookingService.confirmBooking(bookingId);
             }
-            // Chuyển hướng về trang báo Thành công
             response.sendRedirect("http://localhost:5173/payment-success");
-            
         } else {
-            // --- TRƯỜNG HỢP: THANH TOÁN THẤT BẠI / HỦY BỎ ---
+            // THẤT BẠI / HỦY
+            System.out.println("=> Giao dịch THẤT BẠI / HỦY. Đang hủy đơn...");
+            
             if (bookingId > 0) {
-                bookingService.cancelBooking(bookingId); // Cập nhật thành CANCELLED để giải phóng sân
+                bookingService.cancelBooking(bookingId); // <--- QUAN TRỌNG
+                System.out.println("=> Đã gọi hàm cancelBooking cho ID: " + bookingId);
+            } else {
+                System.out.println("=> LỖI: Không tìm thấy ID để hủy!");
             }
-            // Chuyển hướng về trang báo Thất bại
-            response.sendRedirect("http://localhost:5173/payment-failed"); 
+            
+            response.sendRedirect("http://localhost:5173/payment-failed");
         }
     }
 }
