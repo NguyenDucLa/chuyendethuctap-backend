@@ -46,7 +46,8 @@ public class PaymentController {
             if (bookingId > 0) {
                 bookingService.confirmBooking(bookingId);
             }
-            response.sendRedirect("http://localhost:5173/payment-success");
+            response.sendRedirect("https://chuyendethuctap-frontend.vercel.app/payment-success");
+            //response.sendRedirect("http://localhost:5173/payment-success");
         } else {
             // THẤT BẠI / HỦY
             System.out.println("=> Giao dịch THẤT BẠI / HỦY. Đang hủy đơn...");
@@ -58,7 +59,8 @@ public class PaymentController {
                 System.out.println("=> LỖI: Không tìm thấy ID để hủy!");
             }
             
-            response.sendRedirect("http://localhost:5173/payment-failed");
+            response.sendRedirect("https://chuyendethuctap-frontend.vercel.app/payment-failed"); 
+            //response.sendRedirect("http://localhost:5173/payment-failed");
         }
     }
 }
