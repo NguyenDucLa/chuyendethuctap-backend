@@ -31,21 +31,25 @@ public class PaymentService {
         vnp_Params.put("vnp_Amount", String.valueOf(amount));
         vnp_Params.put("vnp_CurrCode", "VND");
         vnp_Params.put("vnp_TxnRef", vnp_TxnRef);
-        // Order Info không dấu, không ký tự đặc biệt để tránh lỗi encode
         vnp_Params.put("vnp_OrderInfo", "Thanh toan don " + booking.getId());
         vnp_Params.put("vnp_OrderType", "other");
         vnp_Params.put("vnp_Locale", "vn");
         vnp_Params.put("vnp_ReturnUrl", VNPayConfig.vnp_ReturnUrl);
         vnp_Params.put("vnp_IpAddr", vnp_IpAddr);
 
+        // --- SỬA LỖI MÚI GIỜ Ở ĐÂY ---
         Calendar cld = Calendar.getInstance(TimeZone.getTimeZone("Etc/GMT+7"));
         SimpleDateFormat formatter = new SimpleDateFormat("yyyyMMddHHmmss");
+        // Quan trọng: Set TimeZone cho formatter để đảm bảo nó ra giờ VN
+        formatter.setTimeZone(TimeZone.getTimeZone("Etc/GMT+7"));
+        
         String vnp_CreateDate = formatter.format(cld.getTime());
         vnp_Params.put("vnp_CreateDate", vnp_CreateDate);
 
         cld.add(Calendar.MINUTE, 15);
         String vnp_ExpireDate = formatter.format(cld.getTime());
         vnp_Params.put("vnp_ExpireDate", vnp_ExpireDate);
+        // -----------------------------
 
         // Build URL & Hash Data
         List<String> fieldNames = new ArrayList<>(vnp_Params.keySet());
@@ -61,9 +65,7 @@ public class PaymentService {
                 // Build Hash Data
                 hashData.append(fieldName);
                 hashData.append('=');
-                // Quan trọng: Dùng StandardCharsets.US_ASCII để encode chuẩn VNPAY
                 hashData.append(URLEncoder.encode(fieldValue, StandardCharsets.US_ASCII.toString()));
-                
                 // Build Query URL
                 query.append(URLEncoder.encode(fieldName, StandardCharsets.US_ASCII.toString()));
                 query.append('=');
@@ -77,7 +79,6 @@ public class PaymentService {
         }
         
         String queryUrl = query.toString();
-        // Tạo Secure Hash từ chuỗi hashData
         String vnp_SecureHash = VNPayConfig.hmacSHA512(VNPayConfig.vnp_HashSecret, hashData.toString());
         queryUrl += "&vnp_SecureHash=" + vnp_SecureHash;
         
