@@ -42,6 +42,8 @@ public class SecurityConfig {
                 // --- 1. KHU VỰC PUBLIC (Ai cũng vào được) ---
                 .requestMatchers("/api/auth/**").permitAll()
                 
+                .requestMatchers("/api/chat").permitAll() // Cho phép chat tự do
+
                 // Sân bóng & Tìm kiếm (GET là public)
                 .requestMatchers(HttpMethod.GET, "/api/courts/**").permitAll() 
                 

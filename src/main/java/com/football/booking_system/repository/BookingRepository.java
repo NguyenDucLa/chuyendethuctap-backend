@@ -27,4 +27,14 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
 
     // Đếm tổng số đơn
     long count();
+
+    // Thống kê doanh thu theo tháng trong năm hiện tại (Chỉ tính đơn CONFIRMED)
+    // Trả về List các mảng: [Tháng, Tổng Tiền]
+    @Query("SELECT MONTH(b.bookingDate), SUM(b.totalPrice) FROM Booking b " +
+           "WHERE b.status = 'CONFIRMED' AND YEAR(b.bookingDate) = YEAR(CURRENT_DATE) " +
+           "GROUP BY MONTH(b.bookingDate)")
+    List<Object[]> getMonthlyRevenue();
+
+    // Tìm tất cả booking trong ngày (Trừ đơn đã hủy)
+    List<Booking> findByBookingDateAndStatusNot(LocalDate date, BookingStatus status);
 }
