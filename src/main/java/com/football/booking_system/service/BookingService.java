@@ -42,7 +42,7 @@ public class BookingService {
 
         for (Booking b : bookings) {
             // LOGIC TỰ ĐỘNG HỦY ĐƠN TREO:
-            // Nếu đơn đang PENDING mà đã tạo quá 15 phút -> Coi như hết hạn -> HỦY LUÔN
+            
             if (b.getStatus() == BookingStatus.PENDING) {
                 // Tính khoảng thời gian từ lúc tạo đến bây giờ
                 long minutesDiff = Duration.between(b.getCreatedAt(), now).toMinutes();
@@ -51,12 +51,12 @@ public class BookingService {
                     // Quá 15 phút chưa thanh toán -> Hủy đơn
                     b.setStatus(BookingStatus.CANCELLED);
                     bookingRepository.save(b);
-                    // Không thêm vào danh sách activeBookings (Để frontend hiển thị là Trống)
+                    
                     continue; 
                 }
             }
             
-            // Nếu là CONFIRMED hoặc PENDING còn hạn thì mới thêm vào danh sách (để hiện màu đỏ)
+            
             activeBookings.add(b);
         }
 
